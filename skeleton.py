@@ -150,11 +150,11 @@ def run_part1():
 	"""
     X, T = get_part1_data()
     p = Perceptron()
-    for _i in range(0, 15):
+    for _i in range(15):
         error = train_one_step(p, 0.02, X, T)
 
-    print("Part 1 error ", error)
-    print("Part 1 accuracy:", compute_accuracy(X,T))
+    print("Part 1 error:", error)
+    print("Part 1 accuracy:", compute_accuracy(p, X, T))
     plot_boundary(p, X, T)
     plt.show()
 
@@ -220,7 +220,7 @@ def dtanh(x):
 	Implements the derivative of the hyperbolic tangent activation function. 
 	"""
     ## Implement
-    1 - tanh(x)**2
+    x = 1 - tanh(x)**2
 
     ## End
     return x
@@ -237,19 +237,27 @@ class NeuralNetwork:
 		The variables are stored inside a dictionary to make them easy accessible.
 		"""
         ## Implement
+        np.random.seed()
 
         self.var = {
             "W1": np.random.rand(2, 20),
             "b1": np.random.rand(1, 20),
-            "net1": 0,
-            "a2": 0,
             "W2": np.random.rand(20, 15),
             "b2": np.random.rand(1, 15),
-            "net2": 0,
-            "a3": 0,
             "W3": np.random.rand(15, 1),
-            "b3": np.random.rand(1, 1),
+            "b3": np.random.rand(1, 1)
+        }
+
+        self.net = {
+            "net1": 0,
+            "net2": 0,
             "net3": 0
+        }
+
+        self.a = {
+            "a1": 0,
+            "a2": 0,
+            "a3": 0
         }
 
     ## End
@@ -269,43 +277,51 @@ class NeuralNetwork:
         b3 = self.var['b3']
 
         ## Implement
-        self.var['net1'] = a1.dot(W1)
-        self.var['a2'] = tanh(self.var['net1'] + b1)
-        self.var['net2'] = self.var['a2'].dot(W2)
-        self.var['a3'] = tanh(self.var['net2'] + b2)
-        self.var['net3'] = self.var['a3'].dot(W3)
-        y = sigmoid(self.var['net3'] + b3)
+        net1 = a1.dot(W1) + b1
+        a2 = tanh(net1)
+        net2 = a2.dot(W2) + b2
+        a3 = tanh(net2)
+        net3 = a3.dot(W3) + b3
+        y = sigmoid(net3)
+
+        self.net["net1"] = net1
+        self.net["net2"] = net2
+        self.net["net3"] = net3
+
+        self.a["a1"] = a1
+        self.a["a2"] = a2
+        self.a["a3"] = a3
 
         ## End
         return y
 
-    def backward(self, error): #TODO error=dMSE
+    def backward(self, error):
         """
-		Backpropagates through the model and computes the derivatives. The forward function must be 
+		Backpropagates through the model and computes the derivatives. The forward function must be
 		run before hand for self.x to be defined. Returns the derivatives without applying them using
 		a dictionary similar to self.var.
 		"""
-        a1 = self.x
+        a1 = self.a['a1']
         W1 = self.var['W1']
         b1 = self.var['b1']
-        net1 = self.var['net1']
-        a2 = self.var['a2']
+        net1 = self.net['net1']
+        a2 = self.a['a2']
         W2 = self.var['W2']
         b2 = self.var['b2']
-        net2 = self.var['net2']
-        a3 = self.var['a3']
+        net2 = self.net['net2']
+        a3 = self.a['a3']
         W3 = self.var['W3']
         b3 = self.var['b3']
-        net3 = self.var['net3']
+        net3 = self.net['net3']
 
         ## Implement
-        dOUTPUT = error * -1 * dsigmoid(net3)
-        d3 = dOUTPUT.dot(W3.T) * dtanh(net2)
-        d2 = d3.dot(W2.T) * dtanh(net1)
+        dOUTPUT = error * dsigmoid(net3)
+        d3 = (dOUTPUT.dot(W3.T)) * dtanh(net2)
+        d2 = (d3.dot(W2.T)) * dtanh(net1)
 
-        db3 = np.sum(dOUTPUT)
-        db2 = np.sum(d3)
-        db1 = np.sum(d2)
+        db3 = dOUTPUT.sum(axis = 0, keepdims = True)
+        db2 = d3.sum(axis = 0, keepdims = True)
+        db1 = d2.sum(axis = 0, keepdims = True)
 
         dW3 = a3.T.dot(dOUTPUT)
         dW2 = a2.T.dot(d3)
@@ -334,12 +350,15 @@ def gradient_check():
         col = np.random.randint(0, NN.var[key].shape[1])
         print("Checking ", key, " at ", row, ",", col)
 
-        ## Implement
-        # analytic_grad = ...
+        y = NN.forward(X)
+        error = dMSE(y, T)
+        updates = NN.backward(error)
+        analytic_grad = updates[key][row][col]
 
-        # x1 =  ...
+        x1 = MSE(y, T)
         NN.var[key][row][col] += eps
-        # x2 =  ...
+        y = NN.forward(X)
+        x2 = MSE(y, T)
 
         ## End
         numeric_grad = (x2 - x1) / eps
@@ -356,13 +375,16 @@ def split_data(data, target):
     Split the input data into two sets.
 	"""
     Xcopy = np.copy(data)
-    #Tcopy = np.copy(target)
     Xcopy = np.append(Xcopy, target, axis=1)
+
+    np.random.seed()
     np.random.shuffle(Xcopy)
-    XTrain = Xcopy[:int(Xcopy.shape[0] * 0.8), :2] #TODO capire in che proporzione splittare
-    XTest = Xcopy[int(Xcopy.shape[0] * 0.8):, :2]
-    TTrain = Xcopy[:int(Xcopy.shape[0] * 0.8), 2]
-    TTest = Xcopy[int(Xcopy.shape[0] * 0.8):, 2]
+
+    XTrain = Xcopy[:int(Xcopy.shape[0] * 0.7), :2] #TODO capire in che proporzione splittare
+    XTest = Xcopy[int(Xcopy.shape[0] * 0.7):, :2]
+    TTrain = Xcopy[:int(Xcopy.shape[0] * 0.7), 2]
+    TTest = Xcopy[int(Xcopy.shape[0] * 0.7):, 2]
+
     return XTrain, XTest, np.array([TTrain]).T, np.array([TTest]).T
 
 
@@ -371,34 +393,74 @@ def run_part2():
 	Train the multi layer perceptron according to the assignment.
 	"""
     X, T = twospirals()
+    XTrain, XTest, TTrain, TTest = split_data(X, T)
+
+    #gradient_check()
+
+    learning_rates = [0.1, 0.01, 0.02, 0.001, 0.0001] #define various learning rates to compare
+
     nn = NeuralNetwork()
-    XTrain, Xtest, TTrain, TTest = split_data(X, T)
-    plot_data(X, T)
-    plt.title("Default")
-    plt.show()
-    plot_data(XTrain, TTrain)
-    plt.title("Train")
-    plt.show()
-    plot_data(Xtest, TTest)
-    plt.title("Test")
+    errorTrain = [] # various arrays to save data that will be plotted
+    accuracyTrain = []
+    errorTest = []
+    accuracyTest = []
+
+    for j in learning_rates:
+        for i in range(2):
+            errorTrain.append(train_one_step(nn, j, XTrain, TTrain))
+            accuracyTrain.append(compute_accuracy(nn, XTrain, TTrain))
+
+            predictions = nn.forward(XTest)
+            errorTest.append(MSE(predictions, TTest))
+            accuracyTest.append(compute_accuracy(nn, XTest, TTest))
+
+            if i%1000 == 0 and False:
+                plot_boundary(nn, XTrain, TTrain, threshold=0.5)
+                plt.title("Train data\nEpoch: "+str(i)+"    Error: "+str(errorTrain[-1]))
+                plt.show(block=False)
+                plt.pause(0.001)
+                plt.clf()
+
+        plt.plot(errorTrain, label=str(j))
+        errorTrain.clear()
+        errorTest.clear()
+        accuracyTrain.clear()
+        errorTest.clear()
+
+    plt.title("Learning rate comparison")
+    plt.ylabel("Error")
+    plt.xlabel("Epochs")
+    plt.legend()
     plt.show()
 
-    predictions = nn.forward(X)
-    error = dMSE(predictions, T)
-    updates = nn.backward(error)
-    for i in range(1):
-        error = train_one_step(nn, 0.002, X, T)
-
-    print("Part 2 error:", error)
-    print("Part 2 accuracy:", compute_accuracy(nn, X, T))
-    plot_boundary(nn, X, T, threshold=0.5)
+    plot_boundary(nn, XTrain, TTrain, threshold=0.5)
+    plt.title("Train data\nEpochs: " + str(i+1) + "    Error: " + str(np.mean(errorTrain)))
     plt.show()
+
+    plot_boundary(nn, XTest, TTest, threshold=0.5)
+    plt.title("Test data    Error: " + str(np.mean(errorTest)))
+    plt.show()
+
+    plt.plot(errorTrain)
+    plt.plot(errorTest)
+    plt.title("Error in training: "+str(np.mean(errorTrain))+"\nError in testing: "+str(np.mean(errorTest)))
+    plt.ylabel("Error")
+    plt.xlabel("Epochs")
+    plt.show()
+
+    plt.plot(accuracyTrain)
+    plt.plot(accuracyTest)
+    plt.title("Accuracy in training: " + str(np.mean(accuracyTrain)) + "\nAccuracy in testing: " + str(np.mean(accuracyTest)))
+    plt.ylabel("Accuracy")
+    plt.xlabel("Epochs")
+    plt.show()
+
 
 ## Part 3
 class BetterNeuralNetwork:
     """
 	Keeps track of the variables of the Multi Layer Perceptron model. Can be 
-	used for predictoin and to compute the gradients.
+	used for prediction and to compute the gradients.
 	"""
 
     def __init__(self):
