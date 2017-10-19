@@ -159,7 +159,6 @@ def run_part1():
     plt.show()
 
 
-
 ## Part 2
 def twospirals(n_points=120, noise=1.6, twist=420):
     """
@@ -393,105 +392,158 @@ def run_part2():
 	Train the multi layer perceptron according to the assignment.
 	"""
     X, T = twospirals()
-    XTrain, XTest, TTrain, TTest = split_data(X, T)
+    XTrain, XTest, TTrain, TTest = split_data(X, T) #create data-set split
 
-    #gradient_check()
+    """'''Plot the train and test data'''
+    plot_data(XTrain,TTrain)
+    plt.title("Training data (70%)")
+    plt.show()
+
+    plot_data(XTest, TTest)
+    plt.title("Test data (30%)")
+    plt.show()"""
+
+    #gradient_check() #works fine
 
     learning_rates = [0.1, 0.01, 0.02, 0.001, 0.0001] #define various learning rates to compare
 
     nn = NeuralNetwork()
+
     errorTrain = [] # various arrays to save data that will be plotted
     accuracyTrain = []
     errorTest = []
     accuracyTest = []
 
-    for j in learning_rates:
-        for i in range(2):
-            errorTrain.append(train_one_step(nn, j, XTrain, TTrain))
-            accuracyTrain.append(compute_accuracy(nn, XTrain, TTrain))
 
-            predictions = nn.forward(XTest)
-            errorTest.append(MSE(predictions, TTest))
-            accuracyTest.append(compute_accuracy(nn, XTest, TTest))
+    # '''Learning rate testing'''
+    # for j in learning_rates:
+    #     for i in range(10000):
+    #         errorTrain.append(train_one_step(nn, j, XTrain, TTrain))
+    #         accuracyTrain.append(compute_accuracy(nn, XTrain, TTrain))
+    #
+    #         predictions = nn.forward(XTest)
+    #         errorTest.append(MSE(predictions, TTest))
+    #         accuracyTest.append(compute_accuracy(nn, XTest, TTest))
+    #
+    #         if i%1000 == 0 and False:
+    #             plot_boundary(nn, XTrain, TTrain, threshold=0.5)
+    #             plt.title("Train data\nEpoch: "+str(i)+"    Error: "+str(errorTrain[-1]))
+    #             plt.show(block=False)
+    #             plt.pause(0.001)
+    #             plt.clf()
+    #
+    #     plt.plot(errorTrain, label=str(j))
+    #     errorTrain.clear()
+    #     errorTest.clear()
+    #     accuracyTrain.clear()
+    #     errorTest.clear()
+    #
+    # plt.title("Learning rate comparison")
+    # plt.ylabel("Error")
+    # plt.xlabel("Epochs")
+    # plt.legend()
+    # plt.show()
 
-            if i%1000 == 0 and False:
-                plot_boundary(nn, XTrain, TTrain, threshold=0.5)
-                plt.title("Train data\nEpoch: "+str(i)+"    Error: "+str(errorTrain[-1]))
-                plt.show(block=False)
-                plt.pause(0.001)
-                plt.clf()
+    '''Train with best learning rate'''
+    for i in range(10000):
+        errorTrain.append(train_one_step(nn, 0.1, XTrain, TTrain))
+        accuracyTrain.append(compute_accuracy(nn, XTrain, TTrain))
 
-        plt.plot(errorTrain, label=str(j))
-        errorTrain.clear()
-        errorTest.clear()
-        accuracyTrain.clear()
-        errorTest.clear()
+        if i % 1000 == 0 and True:
+            plot_boundary(nn, XTrain, TTrain, threshold=0.5)
+            plt.title("Train data\nEpoch: " + str(i) + "    Error: " + str(errorTrain[-1]))
+            plt.show(block=False)
+            plt.pause(0.001)
+            plt.clf()
 
-    plt.title("Learning rate comparison")
+        predictions = nn.forward(XTest)
+        errorTest.append(MSE(predictions, TTest))
+        accuracyTest.append(compute_accuracy(nn, XTest, TTest))
+
+    '''Various plots'''
+    plot_boundary(nn, XTrain, TTrain, threshold=0.5)
+    plt.title("Training data\nEpochs: " + str(i+1) + "    Error: " + str(np.mean(errorTrain)))
+    plt.show()
+
+    plot_boundary(nn, XTest, TTest, threshold=0.5)
+    plt.title("Testing data    Error: " + str(np.mean(errorTest)))
+    plt.show()
+
+    plt.plot(errorTrain, label="Training")
+    plt.plot(errorTest, label="Testing")
+    plt.title("Error in training: "+str(np.mean(errorTrain))+"\nError in testing: "+str(np.mean(errorTest)))
     plt.ylabel("Error")
     plt.xlabel("Epochs")
     plt.legend()
     plt.show()
 
-    plot_boundary(nn, XTrain, TTrain, threshold=0.5)
-    plt.title("Train data\nEpochs: " + str(i+1) + "    Error: " + str(np.mean(errorTrain)))
-    plt.show()
-
-    plot_boundary(nn, XTest, TTest, threshold=0.5)
-    plt.title("Test data    Error: " + str(np.mean(errorTest)))
-    plt.show()
-
-    plt.plot(errorTrain)
-    plt.plot(errorTest)
-    plt.title("Error in training: "+str(np.mean(errorTrain))+"\nError in testing: "+str(np.mean(errorTest)))
-    plt.ylabel("Error")
-    plt.xlabel("Epochs")
-    plt.show()
-
-    plt.plot(accuracyTrain)
-    plt.plot(accuracyTest)
+    plt.plot(accuracyTrain, label="Training")
+    plt.plot(accuracyTest, label="Testing")
     plt.title("Accuracy in training: " + str(np.mean(accuracyTrain)) + "\nAccuracy in testing: " + str(np.mean(accuracyTest)))
     plt.ylabel("Accuracy")
     plt.xlabel("Epochs")
+    plt.legend()
     plt.show()
 
 
 ## Part 3
+
+def ReLu(x):
+    '''Compute ReLU activation function'''
+
+    x = np.maximum(x, 0)
+
+    return x
+
+def dReLu(x):
+    '''Compute ReLU derivative'''
+
+    x = np.array(x > 0, dtype=int)
+
+    return x
+
+
 class BetterNeuralNetwork:
     """
-	Keeps track of the variables of the Multi Layer Perceptron model. Can be 
+	Keeps track of the variables of the Multi Layer Perceptron model. Can be
 	used for prediction and to compute the gradients.
 	"""
 
     def __init__(self):
-        """
-		The variables are stored inside a dictionary to make them easily accessible.
-		"""
-        ## Implement
-        # W1_in = ...
-        # W1_out = ...
-        # W2_in = ...
-        # W2_out = ...
-        # W3_in = ...
-        # W3_out = ...
 
+        np.random.seed()
+
+        '''Initialise the weights in a better way'''
         self.var = {
-            # "W1": (...),
-            # "b1": (...),
-            # "W2": (...),
-            # "b2": (...),
-            # "W3": (...),
-            # "b3": (...),
+            "W1": np.random.randn(2, 20) / np.sqrt(2.0 / 2),
+            "b1": np.random.randn(1, 20) / np.sqrt(2.0),
+            "W2": np.random.randn(20, 15) / np.sqrt(2.0 / 20),
+            "b2": np.random.randn(1, 15) / np.sqrt(2.0),
+            "W3": np.random.randn(15, 1) / np.sqrt(2.0 / 15),
+            "b3": np.random.randn(1, 1) / np.sqrt(2.0)
         }
 
-    ## End
+        self.net = {
+            "net1": 0,
+            "net2": 0,
+            "net3": 0
+        }
+
+        self.a = {
+            "a1": 0,
+            "a2": 0,
+            "a3": 0
+        }
+
+        ## End
 
     def forward(self, inputs):
         """
-		Implements the forward pass of the MLP model and returns the prediction y. We need to 
+		Implements the forward pass of the MLP model and returns the prediction y. We need to
 		store the current input for the backward function.
 		"""
-        x = self.x = inputs
+
+        a1 = self.x = inputs
 
         W1 = self.var['W1']
         b1 = self.var['b1']
@@ -501,8 +553,20 @@ class BetterNeuralNetwork:
         b3 = self.var['b3']
 
         ## Implement
+        net1 = a1.dot(W1) + b1
+        a2 = ReLu(net1)
+        net2 = a2.dot(W2) + b2
+        a3 = ReLu(net2)
+        net3 = a3.dot(W3) + b3
+        y = sigmoid(net3)
 
+        self.net["net1"] = net1
+        self.net["net2"] = net2
+        self.net["net3"] = net3
 
+        self.a["a1"] = a1
+        self.a["a2"] = a2
+        self.a["a3"] = a3
 
         ## End
         return y
@@ -513,17 +577,31 @@ class BetterNeuralNetwork:
 		run before hand for self.x to be defined. Returns the derivatives without applying them using
 		a dictonary similar to self.var.  
 		"""
-        x = self.x
+        a1 = self.a['a1']
         W1 = self.var['W1']
         b1 = self.var['b1']
+        net1 = self.net['net1']
+        a2 = self.a['a2']
         W2 = self.var['W2']
         b2 = self.var['b2']
+        net2 = self.net['net2']
+        a3 = self.a['a3']
         W3 = self.var['W3']
         b3 = self.var['b3']
+        net3 = self.net['net3']
 
         ## Implement
+        dOUTPUT = error * dsigmoid(net3)
+        d3 = (dOUTPUT.dot(W3.T)) * dReLu(net2)
+        d2 = (d3.dot(W2.T)) * dReLu(net1)
 
+        db3 = dOUTPUT.sum(axis=0, keepdims=True)
+        db2 = d3.sum(axis=0, keepdims=True)
+        db1 = d2.sum(axis=0, keepdims=True)
 
+        dW3 = a3.T.dot(dOUTPUT)
+        dW2 = a2.T.dot(d3)
+        dW1 = a1.T.dot(d2)
 
         ## End
         updates = {"W1": dW1,
@@ -535,42 +613,66 @@ class BetterNeuralNetwork:
         return updates
 
 
-def competition_train_from_scratch(testX, testT):
-    """
-	Trains the BetterNeuralNet model from scratch using the twospirals data and calls the other 
-	competition funciton to check the accuracy.
-	"""
-    trainX, trainT = twospirals(n_points=250, noise=0.6, twist=800)
-    NN = BetterNeuralNetwork()
+def run_part3():
 
-    ## Implement
+    X, T = twospirals()
+    XTrain, XTest, TTrain, TTest = split_data(X, T)
 
+    bnn = BetterNeuralNetwork()
 
+    errorTrain = []  # various arrays to save data that will be plotted
+    accuracyTrain = []
+    errorTest = []
+    accuracyTest = []
 
-    ## End
+    minibatch_size=32
+    minibatch_range=int(XTrain.size/minibatch_size)
 
-    print("Accuracy from scratch: ", compute_accuracy(NN, testX, testT))
+    for i in range(10000):
+        for j in range(minibatch_range):
+            errorTrain.append(train_one_step(bnn, 0.001, XTrain[:int(XTrain.shape[0] * j+1 * minibatch_size), :], TTrain[:int(TTrain.shape[0] * j+1 * minibatch_size), :]))
+            accuracyTrain.append(compute_accuracy(bnn, XTrain, TTrain))
 
+        if i % 1000 == 0 and True:
+            plot_boundary(bnn, XTrain, TTrain, threshold=0.5)
+            plt.title("Train data\nEpoch: " + str(i) + "    Error: " + str(errorTrain[-1]))
+            plt.show(block=False)
+            plt.pause(0.001)
+            plt.clf()
 
-def competition_load_weights_and_evaluate_X_and_T(testX, testT):
-    """
-	Loads the weight values from a file into the BetterNeuralNetwork class and computes the accuracy.
-	"""
-    NN = BetterNeuralNetwork()
+        predictions = bnn.forward(XTest)
+        errorTest.append(MSE(predictions, TTest))
+        accuracyTest.append(compute_accuracy(bnn, XTest, TTest))
 
-    ## Implement
+    plot_boundary(bnn, XTrain, TTrain, threshold=0.5)
+    plt.title("Training data\nEpochs: " + str(i+1) + "    Error: " + str(np.mean(errorTrain)))
+    plt.show()
 
+    plot_boundary(bnn, XTest, TTest, threshold=0.5)
+    plt.title("Testing data    Error: " + str(np.mean(errorTest)))
+    plt.show()
 
+    plt.plot(errorTrain, label="Training")
+    plt.plot(errorTest, label="Testing")
+    plt.title("Error in training: "+str(np.mean(errorTrain))+"\nError in testing: "+str(np.mean(errorTest)))
+    plt.ylabel("Error")
+    plt.xlabel("Epochs")
+    plt.legend()
+    plt.show()
 
-    ## End
-
-    print("Accuracy from trained model: ", compute_accuracy(NN, testX, testT))
-
+    plt.plot(accuracyTrain, label="Training")
+    plt.plot(accuracyTest, label="Testing")
+    plt.title("Accuracy in training: " + str(np.mean(accuracyTrain)) + "\nAccuracy in testing: " + str(np.mean(accuracyTest)))
+    plt.ylabel("Accuracy")
+    plt.xlabel("Epochs")
+    plt.legend()
+    plt.show()
 
 def main():
 
-    #run_part1()
+    run_part1()
     run_part2()
+    run_part3()
 
 if __name__ == "__main__":
     main()
